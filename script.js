@@ -376,6 +376,26 @@ addBase64CardBtn.addEventListener('click', () => {
     }
 });
 
+// Збереження та завантаження прогресу гри
+function saveGameProgress() {
+    // Перетворюємо Set на масив для збереження
+    const gameToSave = currentGame ? { ...currentGame, eliminatedPlayers: Array.from(currentGame.eliminatedPlayers) } : null;
+    localStorage.setItem('bunkerGameProgress', JSON.stringify(gameToSave));
+}
+
+function loadGameProgress() {
+    const saved = localStorage.getItem('bunkerGameProgress');
+    if (saved) {
+        currentGame = JSON.parse(saved);
+        // Відновлюємо eliminatedPlayers як Set
+        if (currentGame && currentGame.eliminatedPlayers) {
+            currentGame.eliminatedPlayers = new Set(currentGame.eliminatedPlayers);
+        }
+        return true;
+    }
+    return false;
+}
+
 // Game setup
 function startNewGame() {
     const playerCount = parseInt(playerCountInput.value);
@@ -410,6 +430,7 @@ function startNewGame() {
         
         // Show game flow section
         gameFlow.style.display = 'block';
+        saveGameProgress(); // Зберігаємо гру
     } else {
         alert('Кількість гравців має бути від 3 до 16');
     }
@@ -499,6 +520,7 @@ function displayPlayers(spoilerState = {}) {
                 }
                 spoiler.addEventListener('click', () => {
                     spoiler.classList.toggle('revealed');
+                    saveGameProgress(); // Зберігаємо при зміні спойлера
                 });
             });
 
@@ -532,12 +554,14 @@ function displayPlayers(spoilerState = {}) {
             
             minusBtn.addEventListener('click', () => {
                 currentGame.playerVotes[index]--;
-                displayPlayers();
+                displayPlayers(spoilerState);
+                saveGameProgress();
             });
             
             plusBtn.addEventListener('click', () => {
                 currentGame.playerVotes[index]++;
-                displayPlayers();
+                displayPlayers(spoilerState);
+                saveGameProgress();
             });
             
             // Add event listener for delete button
@@ -546,7 +570,8 @@ function displayPlayers(spoilerState = {}) {
                 if (confirm('Ви впевнені, що хочете видалити цього гравця?')) {
                     currentGame.eliminatedPlayers.add(index);
                     currentGame.activePlayers--;
-                    displayPlayers();
+                    displayPlayers(spoilerState);
+                    saveGameProgress();
                 }
             });
 
@@ -599,11 +624,13 @@ function nextRound() {
         }
     });
     displayPlayers(spoilerState);
+    saveGameProgress();
 }
 
 function endGame() {
     if (confirm('Ви впевнені, що хочете завершити гру?')) {
         currentGame = null;
+        localStorage.removeItem('bunkerGameProgress');
         gameFlow.style.display = 'none';
         playerCountInput.value = '3';
     }
@@ -614,5 +641,15 @@ startGameBtn.addEventListener('click', startNewGame);
 nextRoundBtn.addEventListener('click', nextRound);
 endGameBtn.addEventListener('click', endGame);
 
-// Load stored cards on page load
-loadStoredCards(); 
+// Відновлення прогресу при завантаженні сторінки
+window.addEventListener('DOMContentLoaded', () => {
+    loadStoredCards();
+    if (loadGameProgress()) {
+        mainMenu.classList.remove('active');
+        cardsSection.classList.remove('active');
+        gameSection.classList.add('active');
+        displayGameInfo();
+        displayPlayers();
+        gameFlow.style.display = 'block';
+    }
+}); 
